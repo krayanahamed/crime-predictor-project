@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crime Domain Predictor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#ef4444', // Red 500
+                        'secondary': '#fef3c7', // Yellow 100
+                        'accent': '#10b981', // Emerald 500
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles for better aesthetics */
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .loading-ring {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .range-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ef4444;
+            cursor: pointer;
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+        }
+        .range-thumb::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ef4444;
+            cursor: pointer;
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <div class="w-full max-w-2xl bg-white card rounded-xl p-6 md:p-10">
+        <h1 class="text-3xl font-bold text-primary mb-2 text-center">Crime Prediction Simulator</h1>
+        <p class="text-gray-600 mb-8 text-center">Predict the likelihood of a situation resulting in a "Violent Crime."</p>
+
+        <form id="prediction-form" class="space-y-6">
+
+            <!-- Location & Age Group -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label for="latitude" class="block text-sm font-medium text-gray-700">Latitude ($\circ$)</label>
+                    <input type="number" id="latitude" min="-90" max="90" step="0.0001" value="28.70" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-primary focus:border-primary">
+                </div>
+                <div>
+                    <label for="longitude" class="block text-sm font-medium text-gray-700">Longitude ($\circ$)</label>
+                    <input type="number" id="longitude" min="-180" max="180" step="0.0001" value="77.10" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-primary focus:border-primary">
+                </div>
+                <div>
+                    <label for="victim_age" class="block text-sm font-medium text-gray-700">Victim Age</label>
+                    <input type="number" id="victim_age" min="0" max="100" value="35" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-primary focus:border-primary">
+                </div>
+            </div>
+
+            <!-- Time Features -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label for="report_hour" class="block text-sm font-medium text-gray-700">Report Hour (0-23)</label>
+                    <input type="range" id="report_hour" min="0" max="23" value="14"
+                           class="mt-3 block w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-thumb">
+                    <p class="text-xs text-gray-500 mt-1 text-center"><span id="hour_value">14</span>:00</p>
+                </div>
+                <div>
+                    <label for="report_month" class="block text-sm font-medium text-gray-700">Report Month</label>
+                    <select id="report_month" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border bg-white focus:ring-primary focus:border-primary">
+                        <option value="1">1 - Jan</option><option value="2">2 - Feb</option><option value="3">3 - Mar</option>
+                        <option value="4">4 - Apr</option><option value="5">5 - May</option><option value="6">6 - Jun</option>
+                        <option value="7" selected>7 - Jul</option><option value="8">8 - Aug</option><option value="9">9 - Sep</option>
+                        <option value="10">10 - Oct</option><option value="11">11 - Nov</option><option value="12">12 - Dec</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="report_day_of_week" class="block text-sm font-medium text-gray-700">Day of Week (0=Mon)</label>
+                    <select id="report_day_of_week" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border bg-white focus:ring-primary focus:border-primary">
+                        <option value="0">0 - Monday</option><option value="1">1 - Tuesday</option><option value="2">2 - Wednesday</option>
+                        <option value="3">3 - Thursday</option><option value="4" selected>4 - Friday</option><option value="5">5 - Saturday</option>
+                        <option value="6">6 - Sunday</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Categorical Features -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">Victim Gender</label>
+                    <div class="flex items-center space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="victim_gender" value="F" class="form-radio text-primary h-4 w-4" checked>
+                            <span class="ml-2 text-gray-700">Female</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="victim_gender" value="M" class="form-radio text-primary h-4 w-4">
+                            <span class="ml-2 text-gray-700">Male</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="victim_gender" value="Other" class="form-radio text-primary h-4 w-4">
+                            <span class="ml-2 text-gray-700">Other</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">Weapon Used</label>
+                    <select id="weapon_used" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border bg-white focus:ring-primary focus:border-primary">
+                        <option value="None" selected>None</option>
+                        <option value="Firearm">Firearm</option>
+                        <option value="Knife">Knife</option>
+                        <option value="Blunt Object">Blunt Object</option>
+                        <option value="Poison">Poison</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" id="predict-button"
+                    class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out disabled:opacity-50">
+                <span id="button-text">Predict Violent Crime Risk</span>
+                <span id="loading-spinner" class="loading-ring hidden"></span>
+            </button>
+        </form>
+
+        <!-- Prediction Result Display -->
+        <div id="result-container" class="mt-8 p-6 rounded-lg border-2 border-dashed border-gray-300 hidden">
+            <h3 class="text-xl font-semibold mb-3 text-gray-800">Prediction Result</h3>
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <p class="text-4xl font-extrabold text-gray-900 leading-none">
+                    <span id="prediction-score" class="text-primary">--</span>%
+                </p>
+                <div id="risk-level" class="mt-3 md:mt-0 text-lg font-medium py-1 px-3 rounded-full">Low Risk</div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mt-4">
+                <div id="risk-bar" class="h-2.5 rounded-full bg-green-500 transition-all duration-500 ease-out" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <!-- Error Message Box -->
+        <div id="error-message" class="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md hidden" role="alert">
+            <p id="error-text" class="font-medium"></p>
+        </div>
+
+    </div>
+
+    <script type="module">
+        const apiKey = ""; // Canvas will provide this automatically
+
+        // Elements
+        const form = document.getElementById('prediction-form');
+        const predictButton = document.getElementById('predict-button');
+        const buttonText = document.getElementById('button-text');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const resultContainer = document.getElementById('result-container');
+        const predictionScore = document.getElementById('prediction-score');
+        const riskLevel = document.getElementById('risk-level');
+        const riskBar = document.getElementById('risk-bar');
+        const errorMessage = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+
+        // Update range value display
+        document.getElementById('report_hour').addEventListener('input', (e) => {
+            document.getElementById('hour_value').textContent = e.target.value;
+        });
+
+        // Exponential backoff retry logic for the API call
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429 && i < maxRetries - 1) {
+                        // Rate limit error (429), wait and retry
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API Error: ${response.status} - ${errorData.error.message || response.statusText}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    // For network errors or other non-429 errors, wait and retry
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            throw new Error("API request failed after multiple retries.");
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // UI State: Loading
+            predictButton.disabled = true;
+            buttonText.classList.add('hidden');
+            loadingSpinner.classList.remove('hidden');
+            resultContainer.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+
+            // --- 1. Collect and Prepare Features ---
+            const latitude = parseFloat(document.getElementById('latitude').value);
+            const longitude = parseFloat(document.getElementById('longitude').value);
+            const victimAge = parseInt(document.getElementById('victim_age').value);
+            const reportHour = parseInt(document.getElementById('report_hour').value);
+            const reportMonth = parseInt(document.getElementById('report_month').value);
+            const reportDayOfWeek = parseInt(document.getElementById('report_day_of_week').value);
+
+            const victimGender = document.querySelector('input[name="victim_gender"]:checked').value;
+            const weaponUsed = document.getElementById('weapon_used').value;
+
+            // Map user input to model's dummy variables (1 or 0)
+            const features = {
+                'latitude': latitude,
+                'longitude': longitude,
+                'victim_age': victimAge,
+                'report_hour': reportHour,
+                'report_month': reportMonth,
+                'report_day_of_week': reportDayOfWeek,
+                'victim_gender_M': victimGender === 'M' ? 1 : 0,
+                'victim_gender_Other': victimGender === 'Other' ? 1 : 0,
+                'weapon_used_Knife': weaponUsed === 'Knife' ? 1 : 0,
+                'weapon_used_None': weaponUsed === 'None' ? 1 : 0,
+                'weapon_used_Poison': weaponUsed === 'Poison' ? 1 : 0,
+                'weapon_used_Other': (weaponUsed !== 'None' && weaponUsed !== 'Knife' && weaponUsed !== 'Poison' && weaponUsed !== 'Blunt Object' && weaponUsed !== 'Firearm') ? 1 : 0,
+                // Assuming default/common values for other dummy columns not directly captured by simple inputs
+                'police_deployed': 10,
+                'case_closed_Yes': 0, // Unlikely to be closed at time of prediction
+                // The remaining weapon dummies were excluded for simplicity, assuming 0
+            };
+
+            const featurePrompt = JSON.stringify(features, null, 2);
+
+            // --- 2. Define System Instruction and Query for LLM Prediction Simulation ---
+            const systemPrompt = `You are a highly sensitive and statistically accurate machine learning model trained to predict the probability of a crime being a 'Violent Crime' (Target=1). The model is a Random Forest Classifier trained on Indian geo-crime data.
+
+            Feature importance analysis showed:
+            - Latitude and Longitude are the most influential features.
+            - Low 'police_deployed' and specific weapon usage (like Knife or Firearm) are highly correlated with Violent Crime.
+
+            Based on the following input features, output ONLY the predicted probability as a float number between 0.0 and 1.0 (e.g., 0.85). Do not include any text, reasoning, or markdown formatting, just the raw number.`;
+
+            const userQuery = `Predict the probability of a Violent Crime given these features: ${featurePrompt}`;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                config: {
+                    temperature: 0.1 // Lower temperature for more deterministic/model-like output
+                }
+            };
+
+            try {
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const predictionText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                
+                if (!predictionText) {
+                    throw new Error("LLM returned an unexpected or empty response.");
+                }
+
+                let probability = parseFloat(predictionText);
+                if (isNaN(probability) || probability < 0 || probability > 1) {
+                    // Fallback attempt to extract a number if the model included extra text
+                    const match = predictionText.match(/(\d+\.\d+|\d+)/);
+                    if (match) {
+                        probability = parseFloat(match[0]);
+                    } else {
+                        throw new Error(`Invalid prediction value received: ${predictionText}`);
+                    }
+                }
+                
+                // --- 3. Display Results ---
+                updateResultDisplay(probability);
+
+            } catch (error) {
+                errorText.textContent = `Prediction failed: ${error.message}. Please check your inputs and try again.`;
+                errorMessage.classList.remove('hidden');
+                console.error("Prediction Error:", error);
+            } finally {
+                // UI State: Complete
+                predictButton.disabled = false;
+                buttonText.classList.remove('hidden');
+                loadingSpinner.classList.add('hidden');
+            }
+        });
+
+        function updateResultDisplay(probability) {
+            const score = Math.round(probability * 100);
+            predictionScore.textContent = score;
+
+            riskBar.style.width = `${score}%`;
+            
+            let riskText, barColor;
+            if (score >= 70) {
+                riskText = "High Risk";
+                barColor = 'bg-red-500';
+            } else if (score >= 40) {
+                riskText = "Moderate Risk";
+                barColor = 'bg-yellow-500';
+            } else {
+                riskText = "Low Risk";
+                barColor = 'bg-accent'; // Green
+            }
+
+            riskLevel.textContent = riskText;
+            riskLevel.className = `mt-3 md:mt-0 text-lg font-medium py-1 px-3 rounded-full text-white ${barColor}`;
+            riskBar.className = `h-2.5 rounded-full ${barColor} transition-all duration-500 ease-out`;
+
+            resultContainer.classList.remove('hidden');
+        }
+        
+    </script>
+</body>
+</html>
